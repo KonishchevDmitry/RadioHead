@@ -3,6 +3,8 @@
 // Copyright (C) 2014 Mike McCauley
 // $Id: RH_ASK.cpp,v 1.19 2016/08/17 01:53:21 mikem Exp mikem $
 
+#include <Util/Assertion.hpp>
+
 #include <RH_ASK.h>
 #include <RHCRC.h>
 
@@ -74,9 +76,12 @@ bool RH_ASK::init()
  #endif
 #else
     // Set up digital IO pins for arduino
-    pinMode(_txPin, OUTPUT);
-    pinMode(_rxPin, INPUT);
-    pinMode(_pttPin, OUTPUT);
+    if (this->txEnabled())
+        pinMode(_txPin, OUTPUT);
+    if (this->rxEnabled())
+        pinMode(_rxPin, INPUT);
+    if (this->pttEnabled())
+        pinMode(_pttPin, OUTPUT);
 #endif
 
     // Ready to go
@@ -84,6 +89,18 @@ bool RH_ASK::init()
     timerSetup();
 
     return true;
+}
+
+bool RH_ASK::rxEnabled() {
+    return _rxPin != NO_PIN;
+}
+
+bool RH_ASK::txEnabled() {
+    return _txPin != NO_PIN;
+}
+
+bool RH_ASK::pttEnabled() {
+    return _pttPin != NO_PIN;
 }
 
 // Put these prescaler structs in PROGMEM, not on the stack
@@ -398,40 +415,51 @@ void RH_ASK::timerSetup()
 
 void INTERRUPT_ATTR RH_ASK::setModeIdle()
 {
-    if (_mode != RHModeIdle)
-    {
-	// Disable the transmitter hardware
-	writePtt(LOW);
-	writeTx(LOW);
-	_mode = RHModeIdle;
-    }
+    if (_mode == RHModeIdle)
+        return;
+
+    // Disable the transmitter hardware
+    if (this->pttEnabled())
+        writePtt(LOW);
+    if (this->txEnabled())
+        writeTx(LOW);
+
+    _mode = RHModeIdle;
 }
 
 void RH_ASK::setModeRx()
 {
-    if (_mode != RHModeRx)
-    {
-	// Disable the transmitter hardware
-	writePtt(LOW);
-	writeTx(LOW);
-	_mode = RHModeRx;
-    }
+    if (_mode == RHModeRx)
+        return;
+
+    UTIL_ASSERT(this->rxEnabled());
+
+    // Disable the transmitter hardware
+    if (this->pttEnabled())
+        writePtt(LOW);
+    if (this->txEnabled())
+        writeTx(LOW);
+
+    _mode = RHModeRx;
 }
 
 void RH_ASK::setModeTx()
 {
-    if (_mode != RHModeTx)
-    {
-	// PRepare state varibles for a new transmission
-	_txIndex = 0;
-	_txBit = 0;
-	_txSample = 0;
+    if (_mode == RHModeTx)
+        return;
 
-	// Enable the transmitter hardware
-	writePtt(HIGH);
+    UTIL_ASSERT(this->txEnabled());
 
-	_mode = RHModeTx;
-    }
+    // PRepare state varibles for a new transmission
+    _txIndex = 0;
+    _txBit = 0;
+    _txSample = 0;
+
+    // Enable the transmitter hardware
+    if (this->pttEnabled())
+        writePtt(HIGH);
+
+    _mode = RHModeTx;
 }
 
 // Call this often
@@ -439,6 +467,8 @@ bool RH_ASK::available()
 {
     if (_mode == RHModeTx)
 	return false;
+    if (!this->rxEnabled())
+        return false;
     setModeRx();
     if (_rxBufFull)
     {
@@ -475,6 +505,9 @@ bool RH_ASK::send(const uint8_t* data, uint8_t len)
     uint16_t crc = 0xffff;
     uint8_t *p = _txBuf + RH_ASK_PREAMBLE_LEN; // start of the message area
     uint8_t count = len + 3 + RH_ASK_HEADER_LEN; // Added byte count and FCS and headers to get total number of bytes
+
+    if (!this->txEnabled())
+        return false;
 
     if (len > RH_ASK_MAX_MESSAGE_LEN)
 	return false;
@@ -538,6 +571,7 @@ bool INTERRUPT_ATTR RH_ASK::readRx()
 #if (RH_PLATFORM == RH_PLATFORM_GENERIC_AVR8)
     value = ((RH_ASK_RX_PORT & (1<<RH_ASK_RX_PIN)) ? 1 : 0);
 #else
+    UTIL_ASSERT(this->rxEnabled());
     value = digitalRead(_rxPin);
 #endif
     return value ^ _rxInverted;
@@ -549,6 +583,7 @@ void INTERRUPT_ATTR RH_ASK::writeTx(bool value)
 #if (RH_PLATFORM == RH_PLATFORM_GENERIC_AVR8)
     ((value) ? (RH_ASK_TX_PORT |= (1<<RH_ASK_TX_PIN)) : (RH_ASK_TX_PORT &= ~(1<<RH_ASK_TX_PIN)));
 #else
+    UTIL_ASSERT(this->txEnabled());
     digitalWrite(_txPin, value);
 #endif
 }
@@ -563,6 +598,7 @@ void INTERRUPT_ATTR RH_ASK::writePtt(bool value)
     ((value) ? (RH_ASK_TX_PORT |= (1<<RH_ASK_TX_PIN)) : (RH_ASK_TX_PORT &= ~(1<<RH_ASK_TX_PIN)));
  #endif
 #else
+    UTIL_ASSERT(this->pttEnabled());
     digitalWrite(_pttPin, value ^ _pttInverted);
 #endif
 }

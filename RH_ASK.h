@@ -312,6 +312,18 @@ public:
 #endif
 
 protected:
+    /// A value which represents a disabled pin.
+    static const uint8_t NO_PIN = 0xFF;
+
+    /// Returns true if receiver is enabled
+    bool            rxEnabled();
+
+    /// Returns true if transmitter is enabled
+    bool            txEnabled();
+
+    /// Returns true if ptt is enabled
+    bool            pttEnabled();
+
     /// Helper function for calculating timer ticks
     uint8_t         timerCalc(uint16_t speed, uint16_t max_ticks, uint16_t *nticks);
 
@@ -413,6 +425,20 @@ protected:
     /// Number of symbols in _txBuf to be sent;
     uint8_t _txBufLen;
 
+};
+
+/// Provides a receiver-only mode for simple RF modules.
+class RH_ASK_TRANSMITTER : public RH_ASK
+{
+public:
+    RH_ASK_TRANSMITTER(uint16_t speed, uint8_t txPin): RH_ASK(speed, NO_PIN, txPin, NO_PIN) {}
+};
+
+/// Provides a transmitter-only mode for simple RF modules.
+class RH_ASK_RECEIVER : public RH_ASK
+{
+public:
+    RH_ASK_RECEIVER(uint16_t speed, uint8_t rxPin): RH_ASK(speed, rxPin, NO_PIN, NO_PIN) {}
 };
 
 /// @example ask_reliable_datagram_client.pde
