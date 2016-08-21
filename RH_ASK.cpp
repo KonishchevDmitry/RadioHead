@@ -49,8 +49,8 @@ RH_ASK::RH_ASK(uint16_t speed, uint8_t rxPin, uint8_t txPin, uint8_t pttPin, boo
     _rxPin(rxPin),
     _txPin(txPin),
     _pttPin(pttPin),
-    _pttInverted(pttInverted),
-    _rxInverted(false)
+    _rxInverted(false),
+    _pttInverted(pttInverted)
 {
     // Initialise the first 8 nibbles of the tx buffer to be the standard
     // preamble. We will append messages after that. 0x38, 0x2c is the start symbol before
