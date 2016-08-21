@@ -481,19 +481,19 @@ bool RH_ASK::available()
 bool RH_ASK::recv(uint8_t* buf, uint8_t* len)
 {
     if (!available())
-	return false;
+        return false;
 
     if (buf && len)
     {
-	// Skip the length and 4 headers that are at the beginning of the rxBuf
-	// and drop the trailing 2 bytes of FCS
-	uint8_t message_len = _rxBufLen-RH_ASK_HEADER_LEN - 3;
-	if (*len > message_len)
-	    *len = message_len;
-	memcpy(buf, _rxBuf+RH_ASK_HEADER_LEN+1, *len);
+        // Skip the length and 4 headers that are at the beginning of the rxBuf
+        // and drop the trailing 2 bytes of FCS
+        uint8_t message_len = _rxBufLen - RH_ASK_HEADER_LEN - 3;
+        uint8_t copy_size = *len < message_len ? *len : message_len;
+        memcpy(buf, _rxBuf + RH_ASK_HEADER_LEN + 1, copy_size);
+        *len = message_len;
     }
+
     _rxBufValid = false; // Got the most recent message, delete it
-//    printBuffer("recv:", buf, *len);
     return true;
 }
 
